@@ -1,0 +1,54 @@
+#   Simulation parameters
+SIM_LENGTH = 200
+DT = 0.01
+
+#   Conventional lander specs
+m_max = 1000
+m_min = 300
+d_x = 0.75
+d_y = 0.9
+d_z = 0.75
+I_x = 551.25
+I_y = 551.25
+I_z = 281.25
+F_max = 4000
+I_spt = 289
+M_x_max = 150
+M_y_max = 180
+M_z_max = 150
+I_spm = 280
+g_0 = 9.81
+g = 1.62
+
+#   Constant control inputs, change later
+M_x = 0
+M_y = 0
+M_z = 0
+
+#   Initial conditions
+
+x_init = [
+    1000,
+    0,
+    2600,
+    0,
+    -46.32,
+    0,
+    0
+]
+
+if (r_z > 152):
+        #   Before low gate
+        #   P velocity controller with set point at v_z = -20
+        Kp = -m
+        F = Kp * (v_z + 20) + m * g
+    else:
+        #   After low gate
+        #   PD altitude controller with set point at r_z = 0
+        Kp = -m * 0.25
+        Kd = -2 * m
+        F = Kp * r_z + Kd * v_z + m * g
+
+    #   Clamp F
+    if F < 0:       F = 0
+    if F > F_max:   F = F_max
