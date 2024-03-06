@@ -47,10 +47,8 @@ x_init = [
 numSteps = round(SIM_LENGTH/DT)+1
 t = np.linspace(0, SIM_LENGTH, numSteps)
 
-
 def stateTransition3DoF(x, t):
     m, r_x, r_z, v_x, v_z, beta, dbeta = x
-
 
     if (r_z > 152):
         #   Before low gate
