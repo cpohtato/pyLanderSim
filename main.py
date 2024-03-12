@@ -52,9 +52,18 @@ def stateTransition3DoF(x, t):
 
     if (r_z > 152):
         #   Before low gate
+
+        T = 120 - t
+        ACG = -12*r_z/(pow(T, 2)) - 6*v_z/T
+
+        #   Following APDG
+
+        thrustAccel = ACG + g
+        F = m * thrustAccel
+
         #   P velocity controller with set point at v_z = -20
-        Kp = -m
-        F = Kp * (v_z + 20) + m * g
+        # Kp = -m
+        # F = Kp * (v_z + 20) + m * g
     else:
         #   After low gate
         #   PD altitude controller with set point at r_z = 0
@@ -145,11 +154,11 @@ plt.ylabel('[m]')
 # plt.legend(loc='best')
 # plt.xlabel('t')
 
-# plt.figure(3)
-# plt.plot(t, sol[:, 2], label='z [m]')
-# plt.plot(t, sol[:, 4], label='dz [m/s]')
-# plt.legend(loc='best')
-# plt.xlabel('t')
+plt.figure()
+plt.plot(t, sol[:, 2], label='z [m]')
+plt.plot(t, sol[:, 4], label='dz [m/s]')
+plt.legend(loc='best')
+plt.xlabel('t')
 
 # plt.figure(4)
 # plt.plot(t, sol[:, 5], label='γ [rad]')
