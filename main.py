@@ -6,7 +6,7 @@ import numpy as np
 from scipy.integrate import odeint
 
 #   Simulation parameters
-SIM_LENGTH = 150     #   s
+SIM_LENGTH = 115     #   s
 DT = 0.01           #   s
 
 #   Conventional lander specs
@@ -36,11 +36,14 @@ M_z = 0
 
 x_init = [
     1000,
-    0,
+    # 0,
+    -9260,
     2600,
-    0,
+    # 0,
+    179.42,
     -46.32,
-    0,
+    # 0,
+    -75.5 * math.pi / 180,
     0
 ]
 
@@ -50,31 +53,44 @@ t = np.linspace(0, SIM_LENGTH, numSteps)
 def stateTransition3DoF(x, t):
     m, r_x, r_z, v_x, v_z, beta, dbeta = x
 
-    if (r_z > 152):
+    # if (r_z > 152):
         #   Before low gate
+    #   Following APDG
 
-        T = 120 - t
-        ACG = -12*r_z/(pow(T, 2)) - 6*v_z/T
+    T = 120 - t
+    ACG_z = -12*r_z/(pow(T, 2)) - 6*v_z/T + g
+    ACG_x = -12*r_x/(pow(T, 2)) - 6*v_x/T
 
-        #   Following APDG
+    ACG_mag = math.sqrt(pow(ACG_z, 2) + pow(ACG_x, 2))
+    ACG_angle = -math.atan2(ACG_z, ACG_x) + math.pi/2
 
-        thrustAccel = ACG + g
-        F = m * thrustAccel
+    F = m * ACG_mag
+
+    Kp = I_y
+    Kd = 2 * I_y
+    err = ACG_angle - beta
+    M_y = Kp * err - Kd * dbeta
 
         #   P velocity controller with set point at v_z = -20
         # Kp = -m
         # F = Kp * (v_z + 20) + m * g
-    else:
+    # else:
         #   After low gate
         #   PD altitude controller with set point at r_z = 0
         #   Damping ratio is 2
-        Kp = -m * 0.25
-        Kd = -2 * 1 * m
-        F = Kp * r_z + Kd * v_z + m * g
+        # Kp = -m * 0.25
+        # Kd = -2 * 1 * m
+        # F = Kp * r_z + Kd * v_z + m * g
+        # M_y = 0
 
     #   Clamp F
     if F < 0:       F = 0
     if F > F_max:   F = F_max
+    if m <= 300:    F = 0
+
+    #   Clamp M_y
+    if M_y > M_y_max: M_y = M_y_max
+    if M_y < -M_y_max: M_y = -M_y_max
     if m <= 300:    F = 0
 
     # F = 1000
@@ -160,12 +176,12 @@ plt.plot(t, sol[:, 4], label='dz [m/s]')
 plt.legend(loc='best')
 plt.xlabel('t')
 
-# plt.figure(4)
-# plt.plot(t, sol[:, 5], label='γ [rad]')
-# plt.plot(t, sol[:, 6], label='dγ [rad/s]')
-# plt.legend(loc='best')
-# plt.title("Pitch")
-# plt.xlabel('t [s]')
+plt.figure()
+plt.plot(t, sol[:, 5], label='γ [rad]')
+plt.plot(t, sol[:, 6], label='dγ [rad/s]')
+plt.legend(loc='best')
+plt.title("Pitch")
+plt.xlabel('t [s]')
 
 # plt.figure(5)
 # totalTimesteps = round(SIM_LENGTH/DT)+1
