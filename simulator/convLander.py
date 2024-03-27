@@ -66,36 +66,32 @@ class ConvLander():
         self.I_spm = 280
         self.state = ConvLanderState()
 
-    def getState(self):
-        state = self.state.getVector()
-        return state
+        self.currF = 0.0
+        self.currM_x = 0.0
+        self.currM_y = 0.0
+        self.currM_z = 0.0
 
-    def stateTransition3DoF(self, x, t):
-        m, r_x, r_z, v_x, v_z, beta, dbeta = x
-
-        M_x = 0
-        M_y = 0
-        M_z = 0
+    def digitalControlLoop(self, t):
 
         # if (r_z > 152):
             #   Before low gate
         #   Following APDG
         #   https://pdf.sciencedirectassets.com/271426/1-s2.0-S0005109800X02579/1-s2.0-00
         #   https://doi.org/10.1016/0005-1098(74)90019-3
-        
+
         T = 100 - t
-        ACG_z = -12*(2+r_z)/(pow(T, 2)) - 6*v_z/T + g
-        ACG_x = -12*(2+r_x)/(pow(T, 2)) - 6*v_x/T
+        ACG_z = -12*(2+self.state.z)/(pow(T, 2)) - 6*self.state.dz/T + g
+        ACG_x = -12*(2+self.state.x)/(pow(T, 2)) - 6*self.state.dx/T
 
         ACG_mag = math.sqrt(pow(ACG_z, 2) + pow(ACG_x, 2))
         ACG_angle = -math.atan2(ACG_z, ACG_x) + math.pi/2
 
-        F = m * ACG_mag
+        self.currF = self.state.m * ACG_mag
 
         Kp = self.I_y
         Kd = 2 * self.I_y
-        err = ACG_angle - beta
-        M_y = Kp * err - Kd * dbeta
+        err = ACG_angle - self.state.beta
+        self.currM_y = Kp * err - Kd * self.state.dbeta
 
             #   P velocity controller with set point at v_z = -20
             # Kp = -m
@@ -108,27 +104,32 @@ class ConvLander():
             # Kd = -2 * 1 * m
             # F = Kp * r_z + Kd * v_z + m * g
             # M_y = 0
-
+        
         #   Clamp F
-        if F < 0:       F = 0
-        if F > self.F_max:   F = self.F_max
-        if m <= 300:    F = 0
+        if self.currF < 0:              self.currF = 0
+        if self.currF > self.F_max:     self.currF = self.F_max
+        if self.state.m <= 300:         self.currF = 0
 
         #   Clamp M_y
-        if M_y > self.M_y_max: M_y = self.M_y_max
-        if M_y < -self.M_y_max: M_y = -self.M_y_max
-        if m <= 300:    F = 0
+        if self.currM_y > self.M_y_max:     self.currM_y = self.M_y_max
+        if self.currM_y < -self.M_y_max:    self.currM_y = -self.M_y_max
+        if self.state.m <= 300:             self.currM_y = 0
 
-        # F = 1000
+    def getState(self):
+        state = self.state.getVector()
+        return state
+
+    def stateTransition3DoF(self, x, t):
+        m, r_x, r_z, v_x, v_z, beta, dbeta = x
 
         dxdt = [
-            -F/(self.I_spt * g_0) - M_y/(self.d_y * self.I_spm * g_0),
+            -self.currF/(self.I_spt * g_0) - self.currM_y/(self.d_y * self.I_spm * g_0),
             v_x,
             v_z,
-            F*np.sin(beta)/m,
-            F*np.cos(beta)/m - g,
+            self.currF*np.sin(beta)/m,
+            self.currF*np.cos(beta)/m - g,
             dbeta,
-            M_y/self.I_y 
+            self.currM_y/self.I_y 
         ]
         return dxdt
     
@@ -143,6 +144,7 @@ class ConvLander():
         solution.append(initCondition)
 
         for idx in range(len(t)-1):
+            self.digitalControlLoop(t[idx])
             step = t[idx:idx+2]
             sol = odeint(self.stateTransition3DoF, self.getState(), step)
             self.state.update(sol)
