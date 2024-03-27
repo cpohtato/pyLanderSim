@@ -1,6 +1,26 @@
 from .imports import *
 
-def plotResults(sol, t):
+def plotResults(sol):
+
+    m = []
+    x = []
+    z = []
+    dx = []
+    dz = []
+    beta = []
+    dbeta = []
+    t = []
+
+    for timestep in sol:
+        m.append(timestep[0])
+        x.append(timestep[1])
+        z.append(timestep[2])
+        dx.append(timestep[3])
+        dz.append(timestep[4])
+        beta.append(timestep[5])
+        dbeta.append(timestep[6])
+        t.append(timestep[7])
+
     # fig, axs = plt.subplots(3)
     # fig.suptitle('State variables')
 
@@ -51,8 +71,8 @@ def plotResults(sol, t):
     # plt.xlabel('t [s]')
 
     plt.figure()
-    plt.plot(t, sol[:, 2], label='z')
-    plt.plot(t, sol[:, 1], label='x')
+    plt.plot(t, z, label='z')
+    plt.plot(t, x, label='x')
     plt.legend(loc='best')
     plt.xlabel('t [s]')
     plt.ylabel('[m]')
@@ -64,14 +84,14 @@ def plotResults(sol, t):
     # plt.xlabel('t')
 
     plt.figure()
-    plt.plot(t, sol[:, 2], label='z [m]')
-    plt.plot(t, sol[:, 4], label='dz [m/s]')
+    plt.plot(t, z, label='z [m]')
+    plt.plot(t, dz, label='dz [m/s]')
     plt.legend(loc='best')
     plt.xlabel('t')
 
     plt.figure()
-    plt.plot(t, sol[:, 5], label='γ [rad]')
-    plt.plot(t, sol[:, 6], label='dγ [rad/s]')
+    plt.plot(t, beta, label='β [rad]')
+    plt.plot(t, dbeta, label='dβ [rad/s]')
     plt.legend(loc='best')
     plt.title("Pitch")
     plt.xlabel('t [s]')

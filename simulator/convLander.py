@@ -22,6 +22,31 @@ class ConvLanderState():
             self.dbeta
         ]
         return vector
+    
+    def update(self, sol):
+        self.m = sol[-1, 0]
+        self.x = sol[-1, 1]
+        self.z = sol[-1, 2]
+        self.dx = sol[-1, 3]
+        self.dz = sol[-1, 4]
+        self.beta = sol[-1, 5]
+        self.dbeta = sol[-1, 6]
+
+    def softLanding(self):
+        #   Refer to Apollo design limits here:
+        #   https://www.ibiblio.org/apollo/Documents/TN-D-4131%20Lunar%20Module%20Pilot%20Control%20Considerations.pdf
+        #   Numbers in document are in imperial; metric conversion required
+
+        #   Attitude and rate constraints
+        if (abs(self.beta) > 6.0 * math.pi / 180.0): return False
+        if (abs(self.dbeta) > 2.0 * math.pi / 180.0): return False
+
+        #   Velocity constraints
+        if (abs(self.dx) > 4.0 * 0.3048): return False
+        acceptableVertical = -(10.0 - 0.75 * abs(self.dx)) * 0.3048
+        if (self.dz < acceptableVertical): return False
+
+        return True
 
 class ConvLander():
     def __init__(self):
@@ -41,9 +66,9 @@ class ConvLander():
         self.I_spm = 280
         self.state = ConvLanderState()
 
-    def getIC(self):
-        ic = self.state.getVector()
-        return ic
+    def getState(self):
+        state = self.state.getVector()
+        return state
 
     def stateTransition3DoF(self, x, t):
         m, r_x, r_z, v_x, v_z, beta, dbeta = x
@@ -55,10 +80,12 @@ class ConvLander():
         # if (r_z > 152):
             #   Before low gate
         #   Following APDG
-
+        #   https://pdf.sciencedirectassets.com/271426/1-s2.0-S0005109800X02579/1-s2.0-00
+        #   https://doi.org/10.1016/0005-1098(74)90019-3
+        
         T = 100 - t
-        ACG_z = -12*r_z/(pow(T, 2)) - 6*v_z/T + g
-        ACG_x = -12*r_x/(pow(T, 2)) - 6*v_x/T
+        ACG_z = -12*(2+r_z)/(pow(T, 2)) - 6*v_z/T + g
+        ACG_x = -12*(2+r_x)/(pow(T, 2)) - 6*v_x/T
 
         ACG_mag = math.sqrt(pow(ACG_z, 2) + pow(ACG_x, 2))
         ACG_angle = -math.atan2(ACG_z, ACG_x) + math.pi/2
@@ -104,3 +131,27 @@ class ConvLander():
             M_y/self.I_y 
         ]
         return dxdt
+    
+    def simulate(self):
+        numSteps = round(SIM_LENGTH/DT)+1
+        t = np.linspace(0, SIM_LENGTH, numSteps)
+
+        successfulLanding = False
+        solution = []
+        initCondition = self.state.getVector()
+        initCondition.append(0.0)
+        solution.append(initCondition)
+
+        for idx in range(len(t)-1):
+            step = t[idx:idx+2]
+            sol = odeint(self.stateTransition3DoF, self.getState(), step)
+            self.state.update(sol)
+            vector = self.state.getVector()
+            vector.append(t[idx+1])
+            solution.append(vector)
+
+            if (self.state.z <= 1.0):
+                successfulLanding = self.state.softLanding()
+                break
+
+        return successfulLanding, solution
