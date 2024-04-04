@@ -2,14 +2,14 @@ from .imports import *
 from .consts import *
 
 class ConvLanderState():
-    def __init__(self):
+    def __init__(self, xMod, zMod, dxMod, dzMod, betaMod, dbetaMod):
         self.m = 1000
-        self.x = -9260
-        self.z = 2600
-        self.dx = 179.42
-        self.dz = -46.32
-        self.beta = -75.5 * math.pi / 180
-        self.dbeta = 0
+        self.x = -9260 * xMod
+        self.z = 2600 * zMod
+        self.dx = 179.42 * dxMod
+        self.dz = -46.32 * dzMod
+        self.beta = -75.5 * math.pi / 180 * betaMod
+        self.dbeta = 2.0 * (1.0 - dbetaMod)
 
     def getVector(self):
         vector = [
@@ -52,7 +52,7 @@ class ConvLanderState():
         return True
 
 class ConvLander():
-    def __init__(self):
+    def __init__(self, thrustMod, reactionMod):
         self.m_max = 1000        #   kg
         self.m_min = 300         #   kg
         self.d_x = 0.75          #   m
@@ -67,18 +67,23 @@ class ConvLander():
         self.M_y_max = 180
         self.M_z_max = 150
         self.I_spm = 280
-        self.state = ConvLanderState()
+        self.state = ConvLanderState(random.normalvariate(1.0, 0.02), 
+                                     random.normalvariate(1.0, 0.02), 
+                                     random.normalvariate(1.0, 0.02), 
+                                     random.normalvariate(1.0, 0.02), 
+                                     random.normalvariate(1.0, 0.02), 
+                                     random.normalvariate(1.0, 0.02))
 
         self.currF = 0.0
         self.currM_x = 0.0
         self.currM_y = 0.0
         self.currM_z = 0.0
 
-        self.thrustMod = 0.965
-        self.F_max = self.F_max * self.thrustMod
+        self.thrustMod = thrustMod
+        self.F_max = self.F_max * thrustMod
 
-        self.reactionMod = 1.0
-        self.M_y_max = self.M_y_max * self.reactionMod
+        self.reactionMod = reactionMod
+        self.M_y_max = self.M_y_max * reactionMod
 
     def clampCommandedThrust(self):
         #   Clamp F
@@ -188,13 +193,14 @@ class ConvLander():
 
             if (self.state.z <= 1.0):
                 successfulLanding = self.state.softLanding()
-                acceptableVertical = self.state.calculateAcceptableVertical()
+                fuelConsumed = self.m_max - self.state.m
+                # acceptableVertical = self.state.calculateAcceptableVertical()
 
-                print()
-                if (successfulLanding):
-                    print("Successfully soft landed!")
-                else:
-                    print("Crash landed")
+                # print()
+                # if (successfulLanding):
+                #     print("Successfully soft landed!")
+                # else:
+                #     print("Crash landed")
 
                 # print()
                 # print("Terminal conditions:")
@@ -203,9 +209,9 @@ class ConvLander():
                 # print("Angle from normal: " + str(round(self.state.beta * 180.0 / math.pi, 2)) + "/6.0 [deg]")
                 # print("Angular velocity: " + str(round(self.state.dbeta * 180.0 / math.pi, 2)) + "/2.0 [deg/s]")
 
-                print("Horizontal error: " + str(round(self.state.x, 2)) + " [m]")
-                print()
+                # print("Horizontal error: " + str(round(self.state.x, 2)) + " [m]")
+                # print()
 
                 break
 
-        return solution
+        return successfulLanding, self.state.x, fuelConsumed, solution

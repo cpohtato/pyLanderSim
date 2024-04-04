@@ -1,4 +1,5 @@
 import math
+import random
 import matplotlib
 matplotlib.use('tkagg')
 from matplotlib import pyplot as plt

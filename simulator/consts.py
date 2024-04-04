@@ -1,3 +1,5 @@
+NUM_TESTS = 1000
+
 #   Simulation parameters
 SIM_LENGTH = 119    #   s
 DT = 0.01           #   s
