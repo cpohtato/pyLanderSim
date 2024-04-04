@@ -1,5 +1,5 @@
 #   Simulation parameters
-SIM_LENGTH = 99     #   s
+SIM_LENGTH = 119    #   s
 DT = 0.01           #   s
 
 #   Standard gravity

@@ -32,6 +32,9 @@ class ConvLanderState():
         self.beta = sol[-1, 5]
         self.dbeta = sol[-1, 6]
 
+    def calculateAcceptableVertical(self):
+        return -(10.0 - 0.75 * abs(self.dx)) * 0.3048
+
     def softLanding(self):
         #   Refer to Apollo design limits here:
         #   https://www.ibiblio.org/apollo/Documents/TN-D-4131%20Lunar%20Module%20Pilot%20Control%20Considerations.pdf
@@ -43,7 +46,7 @@ class ConvLanderState():
 
         #   Velocity constraints
         if (abs(self.dx) > 4.0 * 0.3048): return False
-        acceptableVertical = -(10.0 - 0.75 * abs(self.dx)) * 0.3048
+        acceptableVertical = self.calculateAcceptableVertical()
         if (self.dz < acceptableVertical): return False
 
         return True
@@ -71,20 +74,45 @@ class ConvLander():
         self.currM_y = 0.0
         self.currM_z = 0.0
 
+    def clampCommandedThrust(self):
+        #   Clamp F
+        if self.currF < 0:              self.currF = 0
+        if self.currF > self.F_max:     self.currF = self.F_max
+        if self.state.m <= 300:         self.currF = 0
+
+    def clampCommandedMoment(self):
+        #   Clamp M_y
+        if self.currM_y > self.M_y_max:     self.currM_y = self.M_y_max
+        if self.currM_y < -self.M_y_max:    self.currM_y = -self.M_y_max
+        if self.state.m <= 300:             self.currM_y = 0
+
+    def calculateTargetVector(self, t):
+
+        T = 120 - t
+        ACG_z = -12*(2+self.state.z)/(pow(T, 2)) - 6*self.state.dz/T + g
+
+        if (self.state.z > 152):
+            #   Following APDG
+            #   https://pdf.sciencedirectassets.com/271426/1-s2.0-S0005109800X02579/1-s2.0-00
+            #   https://doi.org/10.1016/0005-1098(74)90019-3
+            
+            ACG_x = 12*(300-self.state.x)/(pow(T, 2)) - 6*self.state.dx/T
+
+        else:
+            #   Kill off any horizontal movement now
+            ACG_x = -(self.state.dx/5.0)
+
+        ACG_mag = math.sqrt(pow(ACG_z, 2) + pow(ACG_x, 2))
+        ACG_angle = -math.atan2(ACG_z, ACG_x) + math.pi/2
+
+        return ACG_mag, ACG_angle
+
     def digitalControlLoop(self, t):
 
         # if (r_z > 152):
             #   Before low gate
-        #   Following APDG
-        #   https://pdf.sciencedirectassets.com/271426/1-s2.0-S0005109800X02579/1-s2.0-00
-        #   https://doi.org/10.1016/0005-1098(74)90019-3
 
-        T = 100 - t
-        ACG_z = -12*(2+self.state.z)/(pow(T, 2)) - 6*self.state.dz/T + g
-        ACG_x = -12*(2+self.state.x)/(pow(T, 2)) - 6*self.state.dx/T
-
-        ACG_mag = math.sqrt(pow(ACG_z, 2) + pow(ACG_x, 2))
-        ACG_angle = -math.atan2(ACG_z, ACG_x) + math.pi/2
+        ACG_mag, ACG_angle = self.calculateTargetVector(t)
 
         self.currF = self.state.m * ACG_mag
 
@@ -105,15 +133,10 @@ class ConvLander():
             # F = Kp * r_z + Kd * v_z + m * g
             # M_y = 0
         
-        #   Clamp F
-        if self.currF < 0:              self.currF = 0
-        if self.currF > self.F_max:     self.currF = self.F_max
-        if self.state.m <= 300:         self.currF = 0
+        self.clampCommandedThrust()
+        self.clampCommandedMoment()
 
-        #   Clamp M_y
-        if self.currM_y > self.M_y_max:     self.currM_y = self.M_y_max
-        if self.currM_y < -self.M_y_max:    self.currM_y = -self.M_y_max
-        if self.state.m <= 300:             self.currM_y = 0
+        return ACG_mag, ACG_angle        
 
     def getState(self):
         state = self.state.getVector()
@@ -140,20 +163,43 @@ class ConvLander():
         successfulLanding = False
         solution = []
         initCondition = self.state.getVector()
-        initCondition.append(0.0)
+        initCondition.append(0.0)   #   t
+        ACG_mag, ACG_angle = self.calculateTargetVector(0.0)
+        initCondition.append(ACG_mag)   #   ACG_mag
+        initCondition.append(ACG_angle)   #   ACG_angle
         solution.append(initCondition)
 
         for idx in range(len(t)-1):
-            self.digitalControlLoop(t[idx])
+            r_thrust, r_angle = self.digitalControlLoop(t[idx])
             step = t[idx:idx+2]
             sol = odeint(self.stateTransition3DoF, self.getState(), step)
             self.state.update(sol)
             vector = self.state.getVector()
             vector.append(t[idx+1])
+            vector.append(r_thrust)
+            vector.append(r_angle)
             solution.append(vector)
 
             if (self.state.z <= 1.0):
                 successfulLanding = self.state.softLanding()
+                acceptableVertical = self.state.calculateAcceptableVertical()
+
+                print()
+                if (successfulLanding):
+                    print("Successfully soft landed!")
+                else:
+                    print("Crash landed")
+
+                # print()
+                # print("Terminal conditions:")
+                # print("Vertical velocity: " + str(round(self.state.dz, 2)) + "/" + str(round(acceptableVertical, 2)) + " [m/s]")
+                # print("Horizontal velocity: " + str(round(self.state.dx, 2)) + "/1.22 [m/s]")
+                # print("Angle from normal: " + str(round(self.state.beta * 180.0 / math.pi, 2)) + "/6.0 [deg]")
+                # print("Angular velocity: " + str(round(self.state.dbeta * 180.0 / math.pi, 2)) + "/2.0 [deg/s]")
+
+                print("Horizontal error: " + str(round(self.state.x, 2)) + " [m]")
+                print()
+
                 break
 
-        return successfulLanding, solution
+        return solution

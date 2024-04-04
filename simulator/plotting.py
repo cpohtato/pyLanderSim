@@ -10,6 +10,8 @@ def plotResults(sol):
     beta = []
     dbeta = []
     t = []
+    r_mag = []
+    r_angle = []
 
     for timestep in sol:
         m.append(timestep[0])
@@ -20,6 +22,8 @@ def plotResults(sol):
         beta.append(timestep[5])
         dbeta.append(timestep[6])
         t.append(timestep[7])
+        r_mag.append(timestep[8])
+        r_angle.append(timestep[9])
 
     # fig, axs = plt.subplots(3)
     # fig.suptitle('State variables')
@@ -92,6 +96,7 @@ def plotResults(sol):
     plt.figure()
     plt.plot(t, beta, label='β [rad]')
     plt.plot(t, dbeta, label='dβ [rad/s]')
+    plt.plot(t, r_angle, label='Reference [rad]')
     plt.legend(loc='best')
     plt.title("Pitch")
     plt.xlabel('t [s]')

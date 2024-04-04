@@ -2,8 +2,7 @@ from simulator import *
 
 def main():
     lander = ConvLander()
-    successfulLanding, solution = lander.simulate()
-    print(successfulLanding)
+    solution = lander.simulate()
     plotResults(solution)
 
 if (__name__ == "__main__"):
