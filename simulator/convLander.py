@@ -74,6 +74,12 @@ class ConvLander():
         self.currM_y = 0.0
         self.currM_z = 0.0
 
+        self.thrustMod = 0.965
+        self.F_max = self.F_max * self.thrustMod
+
+        self.reactionMod = 1.0
+        self.M_y_max = self.M_y_max * self.reactionMod
+
     def clampCommandedThrust(self):
         #   Clamp F
         if self.currF < 0:              self.currF = 0
@@ -114,12 +120,12 @@ class ConvLander():
 
         ACG_mag, ACG_angle = self.calculateTargetVector(t)
 
-        self.currF = self.state.m * ACG_mag
+        self.currF = self.state.m * ACG_mag * self.thrustMod
 
         Kp = self.I_y
         Kd = 2 * self.I_y
         err = ACG_angle - self.state.beta
-        self.currM_y = Kp * err - Kd * self.state.dbeta
+        self.currM_y = Kp * err - Kd * self.state.dbeta * self.reactionMod
 
             #   P velocity controller with set point at v_z = -20
             # Kp = -m
