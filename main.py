@@ -11,7 +11,7 @@ def main():
         if ((test + 1) % 10 == 0):
             print("Test " + str(test+1) + "/" + str(NUM_TESTS))
 
-        lander = ConvLander(random.normalvariate(1.0, 0.01), random.normalvariate(1.0, 0.01))
+        lander = ConvLander(random.normalvariate(1.0, 0.02), random.normalvariate(1.0, 0.02))
         successfulLanding, rangeError, fuelConsumed, solution = lander.simulate()
 
         if (successfulLanding): 
@@ -28,7 +28,7 @@ def main():
     print("Avg. range error: " + str(round(avgError, 2)) + " [m]")
     print("Avg. fuel consumption: " + str(round(avgFuel, 2)), " [kg]")
     
-    # plotResults(solution)
+    plotResults(solution)
 
 if (__name__ == "__main__"):
     main()

@@ -67,12 +67,17 @@ class ConvLander():
         self.M_y_max = 180
         self.M_z_max = 150
         self.I_spm = 280
-        self.state = ConvLanderState(random.normalvariate(1.0, 0.02), 
-                                     random.normalvariate(1.0, 0.02), 
-                                     random.normalvariate(1.0, 0.02), 
-                                     random.normalvariate(1.0, 0.02), 
-                                     random.normalvariate(1.0, 0.02), 
-                                     random.normalvariate(1.0, 0.02))
+        self.state = ConvLanderState(random.normalvariate(1.0, 0.04), 
+                                     random.normalvariate(1.0, 0.04), 
+                                     random.normalvariate(1.0, 0.04), 
+                                     random.normalvariate(1.0, 0.04), 
+                                     random.normalvariate(1.0, 0.04), 
+                                     random.normalvariate(1.0, 0.04))
+
+        self.prevDX = self.state.dx
+        self.prevDZ = self.state.dz
+        self.prevAccel = 0.0
+        self.accumAccelError = 0.0
 
         self.currF = 0.0
         self.currM_x = 0.0
@@ -125,27 +130,31 @@ class ConvLander():
 
         ACG_mag, ACG_angle = self.calculateTargetVector(t)
 
+        #   Main engine feedback controller
+        ddx = (self.state.dx - self.prevDX)/DT
+        ddz = (self.state.dz - self.prevDZ)/DT
+        dr_mag = math.sqrt(pow(ddx, 2) + pow(ddz, 2))
+        accelError = self.prevAccel - dr_mag
+        self.accumAccelError += accelError * DT
+
         self.currF = self.state.m * ACG_mag * self.thrustMod
+        Kp_t = 1.0
+        Ki_t = 1.0
+        self.currF += Kp_t * accelError * self.thrustMod
+        self.currF += Ki_t * self.accumAccelError * self.thrustMod
 
-        Kp = self.I_y
-        Kd = 2 * self.I_y
+        #   Angular feedback controller
+        Kp_r = self.I_y
+        Kd_r = 2 * self.I_y
         err = ACG_angle - self.state.beta
-        self.currM_y = Kp * err - Kd * self.state.dbeta * self.reactionMod
-
-            #   P velocity controller with set point at v_z = -20
-            # Kp = -m
-            # F = Kp * (v_z + 20) + m * g
-        # else:
-            #   After low gate
-            #   PD altitude controller with set point at r_z = 0
-            #   Damping ratio is 2
-            # Kp = -m * 0.25
-            # Kd = -2 * 1 * m
-            # F = Kp * r_z + Kd * v_z + m * g
-            # M_y = 0
+        self.currM_y = Kp_r * err - Kd_r * self.state.dbeta * self.reactionMod
         
         self.clampCommandedThrust()
         self.clampCommandedMoment()
+
+        self.prevDX = self.state.dx
+        self.prevDZ = self.state.dz
+        self.prevAccel = ACG_mag
 
         return ACG_mag, ACG_angle        
 

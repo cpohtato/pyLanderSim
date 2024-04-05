@@ -1,4 +1,4 @@
-NUM_TESTS = 1000
+NUM_TESTS = 1
 
 #   Simulation parameters
 SIM_LENGTH = 119    #   s
