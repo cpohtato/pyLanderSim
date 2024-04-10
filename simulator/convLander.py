@@ -8,8 +8,8 @@ class ConvLanderState():
         self.z = 2600 * zMod
         self.dx = 179.42 * dxMod
         self.dz = -46.32 * dzMod
-        self.beta = -75.5 * math.pi / 180 * betaMod
-        self.dbeta = 2.0 * (1.0 - dbetaMod)
+        self.beta = (-75.5 + betaMod) * math.pi / 180
+        self.dbeta = dbetaMod * math.pi / 180
 
     def getVector(self):
         vector = [
@@ -52,7 +52,7 @@ class ConvLanderState():
         return True
 
 class ConvLander():
-    def __init__(self, thrustMod, reactionMod):
+    def __init__(self, thrustMod, reactionMod, xMod, zMod, dxMod, dzMod, betaMod, dbetaMod):
         self.m_max = 1000        #   kg
         self.m_min = 300         #   kg
         self.d_x = 0.75          #   m
@@ -67,12 +67,7 @@ class ConvLander():
         self.M_y_max = 180
         self.M_z_max = 150
         self.I_spm = 280
-        self.state = ConvLanderState(random.normalvariate(1.0, 0.04), 
-                                     random.normalvariate(1.0, 0.04), 
-                                     random.normalvariate(1.0, 0.04), 
-                                     random.normalvariate(1.0, 0.04), 
-                                     random.normalvariate(1.0, 0.04), 
-                                     random.normalvariate(1.0, 0.04))
+        self.state = ConvLanderState(xMod, zMod, dxMod, dzMod, betaMod, dbetaMod)
 
         self.prevDX = self.state.dx
         self.prevDZ = self.state.dz
@@ -112,7 +107,7 @@ class ConvLander():
             #   https://pdf.sciencedirectassets.com/271426/1-s2.0-S0005109800X02579/1-s2.0-00
             #   https://doi.org/10.1016/0005-1098(74)90019-3
             
-            ACG_x = 12*(300-self.state.x)/(pow(T, 2)) - 6*self.state.dx/T
+            ACG_x = 12*(324.14-self.state.x)/(pow(T, 2)) - 6*self.state.dx/T
 
         else:
             #   Kill off any horizontal movement now
