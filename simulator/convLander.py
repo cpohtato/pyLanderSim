@@ -99,22 +99,30 @@ class ConvLander():
 
     def calculateTargetVector(self, t):
 
-        T = 120 - t
-        ACG_z = -12*(2+self.state.z)/(pow(T, 2)) - 6*self.state.dz/T + g
+        lowGateAltitude = 50.0
+        distance = math.sqrt(pow(self.state.x, 2) + pow(self.state.z - lowGateAltitude, 2))
 
-        if (self.state.z > 152):
+        if (self.state.z <= lowGateAltitude) or (distance <= 5.0):
+            #   Low gate guidance, go straight down
+            ACG_z = (-1.83 - self.state.dz)/5.0 + g
+            ACG_x = -(self.state.dx/20.0)
+        else:
+
             #   Following APDG
             #   https://pdf.sciencedirectassets.com/271426/1-s2.0-S0005109800X02579/1-s2.0-00
             #   https://doi.org/10.1016/0005-1098(74)90019-3
-            
-            ACG_x = 12*(324.14-self.state.x)/(pow(T, 2)) - 6*self.state.dx/T
 
-        else:
-            #   Kill off any horizontal movement now
-            ACG_x = -(self.state.dx/5.0)
+            T = 120 - t
+            ACG_z = 12*(lowGateAltitude-self.state.z)/(pow(T, 2)) - 6*self.state.dz/T + g
+            ACG_x = 12*(0.0-self.state.x)/(pow(T, 2)) - 6*self.state.dx/T     
 
         ACG_mag = math.sqrt(pow(ACG_z, 2) + pow(ACG_x, 2))
         ACG_angle = -math.atan2(ACG_z, ACG_x) + math.pi/2
+
+        if (abs((ACG_angle - 2 * math.pi) - self.state.beta) < abs(ACG_angle - self.state.beta)):
+            ACG_angle -= 2 * math.pi
+        elif (abs((ACG_angle + 2 * math.pi) - self.state.beta) < abs(ACG_angle - self.state.beta)):
+            ACG_angle += 2 * math.pi
 
         return ACG_mag, ACG_angle
 
@@ -197,7 +205,7 @@ class ConvLander():
 
             if (self.state.z <= 1.0):
                 successfulLanding = self.state.softLanding()
-                fuelConsumed = self.m_max - self.state.m
+                
                 # acceptableVertical = self.state.calculateAcceptableVertical()
 
                 # print()
@@ -217,5 +225,7 @@ class ConvLander():
                 # print()
 
                 break
+
+        fuelConsumed = self.m_max - self.state.m
 
         return successfulLanding, self.state.x, fuelConsumed, solution
