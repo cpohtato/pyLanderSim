@@ -10,7 +10,7 @@ class TVCLanderState():
         self.dz = -46.32 * dzMod
         self.beta = (-75.5 + betaMod) * math.pi / 180
         self.dbeta = dbetaMod * math.pi / 180
-        self.phi = (0.0 + phiMod) * math.pi / 180
+        self.phi = (6.0 + phiMod) * math.pi / 180
         self.dphi = dPhiMod * math.pi / 180
 
     def getVector(self):
@@ -60,7 +60,7 @@ class TVCLanderState():
 class TVCLander():
     def __init__(self, thrustMod, tauMod, xMod, zMod, dxMod, dzMod, betaMod, dbetaMod, phiMod, dPhiMod):
         self.m_max = 1000        #   kg
-        self.m_min = 300         #   kg
+        self.m_min = 314.51      #   kg
         self.d_x = 0.75          #   m
         self.d_y = 0.9
         self.d_z = 0.75
@@ -69,10 +69,11 @@ class TVCLander():
         self.I_z = 281.25
         self.F_max = 4000
         self.I_spt = 289
-        self.tau_max = 0.0
-        self.b = 0.0
-        self.J_x = 0.0
-        self.J_y = 0.0
+        self.tau_max = 945.0
+        self.b = 0.05
+        self.J_x = 14.32
+        self.J_y = 14.32
+        self.phi_max = 6.0 * math.pi / 180.0
         self.state = TVCLanderState(xMod, zMod, dxMod, dzMod, betaMod, dbetaMod, phiMod, dPhiMod)
 
         self.prevDX = self.state.dx
@@ -131,7 +132,7 @@ class TVCLander():
 
         ACG_mag, ACG_angle = self.calculateTargetVector(t)
 
-        self.currF = 0.0
+        self.currF = 4000.0
         self.currTau = 0.0
 
         return ACG_mag, ACG_angle        
@@ -150,41 +151,145 @@ class TVCLander():
             self.currF*np.sin(phi + beta)/m,
             self.currF*np.cos(phi + beta)/m - g,
             dbeta,
-            -self.currTau/(self.I_y - pow(self.dy, 2)*self.J_y)-(self.currF*np.sin(phi))/self.I_y,
+            -self.currTau/(self.I_y - pow(self.d_y, 2)*self.J_y)-(self.currF*np.sin(phi)*self.d_y)/self.I_y,
             dphi,
             (self.currTau - self.b*dphi)/self.J_y
         ]
         return dxdt
 
     def simulate(self):
-        numSteps = round(SIM_LENGTH/DT)+1
-        t = np.linspace(0, SIM_LENGTH, numSteps)
 
-        successfulLanding = False
-        solution = []
-        initCondition = self.state.getVector()
-        initCondition.append(0.0)   #   t
-        ACG_mag, ACG_angle = self.calculateTargetVector(0.0)
-        initCondition.append(ACG_mag)   #   ACG_mag
-        initCondition.append(ACG_angle)   #   ACG_angle
-        solution.append(initCondition)
+        global g
 
-        for idx in range(len(t)-1):
-            r_thrust, r_angle = self.digitalControlLoop(t[idx])
-            step = t[idx:idx+2]
-            sol = odeint(self.stateTransition3DoF, self.getState(), step)
-            self.state.update(sol)
-            vector = self.state.getVector()
-            vector.append(t[idx+1])
-            vector.append(r_thrust)
-            vector.append(r_angle)
-            solution.append(vector)
+        model = do_mpc.model.Model('continuous')
 
-            if (self.state.z <= 1.0):
-                successfulLanding = self.state.softLanding()
+        m = model.set_variable(var_type='_x', var_name='m', shape=(1,1))
+        x = model.set_variable(var_type='_x', var_name='x', shape=(1,1))
+        z = model.set_variable(var_type='_x', var_name='z', shape=(1,1))
+        dx = model.set_variable(var_type='_x', var_name='dx', shape=(1,1))
+        dz = model.set_variable(var_type='_x', var_name='dz', shape=(1,1))
+        beta = model.set_variable(var_type='_x', var_name='beta', shape=(1,1))
+        dbeta = model.set_variable(var_type='_x', var_name='dbeta', shape=(1,1))
+        phi = model.set_variable(var_type='_x', var_name='phi', shape=(1,1))
+        dphi = model.set_variable(var_type='_x', var_name='dphi', shape=(1,1))
+        
+        F = model.set_variable(var_type='_u', var_name='F', shape=(1,1))
+        tau = model.set_variable(var_type='_u', var_name='tau', shape=(1,1))
 
-                break
+        model.set_rhs('m', -F/(self.I_spt * g_0))
+        model.set_rhs('x', dx)
+        model.set_rhs('z', dz)
+        model.set_rhs('dx', F*np.sin(phi + beta)/m)
+        model.set_rhs('dz', F*np.cos(phi + beta)/m - g)
+        model.set_rhs('beta', dbeta)
+        model.set_rhs('dbeta', -tau/(self.I_y-self.d_y**2*self.J_y)-F*np.sin(phi)*self.d_y/self.I_y)
+        model.set_rhs('phi', dphi)
+        model.set_rhs('dphi', (tau-self.b*dphi)/self.J_y)
 
-        fuelConsumed = self.m_max - self.state.m
+        model.setup()
 
-        return successfulLanding, self.state.x, fuelConsumed, solution
+        mpc = do_mpc.controller.MPC(model)
+        setup_mpc = {
+            'n_horizon': 10,
+            't_step': 0.1,
+            'n_robust': 0,
+            'store_full_solution': True,
+        }
+        mpc.set_param(**setup_mpc)
+
+        mterm = x**2 + z**2 + dx**2 + dz**2 + beta**2 + dbeta**2
+        lterm = x**2 + z**2 + dx**2 + dz**2 + beta**2 + dbeta**2
+        mpc.set_objective(mterm=mterm, lterm=lterm)
+
+        mpc.set_rterm(
+            F = 1e-4,
+            tau = 1e-4
+        )
+
+        mpc.bounds['lower', '_u', 'F'] = 0.0
+        mpc.bounds['upper', '_u', 'F'] = self.F_max
+        mpc.bounds['lower', '_u', 'tau'] = -self.tau_max
+        mpc.bounds['upper', '_u', 'tau'] = self.tau_max
+
+        mpc.bounds['lower', '_x', 'x'] = self.m_min
+        mpc.bounds['lower', '_x', 'x'] = 0.0
+        mpc.bounds['lower', '_x', 'z'] = 0.0
+        mpc.bounds['lower', '_x', 'phi'] = -self.phi_max
+        mpc.bounds['lower', '_x', 'phi'] = self.phi_max
+
+        mpc.setup()
+
+        simulator = do_mpc.simulator.Simulator(model)
+        simulator.set_param(t_step = 0.1)
+        simulator.setup()
+
+        ic = self.state.getVector()
+        x0 = np.array([ic[0], ic[1], ic[2], ic[3], ic[4], ic[5], ic[6], ic[7], ic[8]]).reshape(-1,1)
+        simulator.x0 = x0
+        mpc.x0 = x0
+        mpc.set_initial_guess()
+
+        mpl.rcParams['font.size'] = 18
+        mpl.rcParams['lines.linewidth'] = 3
+        mpl.rcParams['axes.grid'] = True
+        
+        mpc_graphics = do_mpc.graphics.Graphics(mpc.data)
+        sim_graphics = do_mpc.graphics.Graphics(simulator.data)
+
+        fig, ax = plt.subplots(2, sharex=True, figsize=(16,9))
+        fig.align_ylabels()
+
+        for g in [sim_graphics, mpc_graphics]:
+            g.add_line(var_type='_x', var_name='x', axis=ax[0])
+            g.add_line(var_type='_x', var_name='z', axis=ax[0])
+
+            g.add_line(var_type='_u', var_name='F', axis=ax[1])
+            g.add_line(var_type='_u', var_name='tau', axis=ax[1])
+
+        ax[0].set_ylabel('Distance [m]')
+        ax[1].set_ylabel('Input')
+        ax[1].set_xlabel('Time [s]')
+
+        simulator.reset_history()
+        simulator.x0 = x0
+        mpc.reset_history()
+        for i in range(round(SIM_LENGTH/0.1)):
+            u0 = mpc.make_step(x0)
+            simulator.make_step(u0)
+
+        mpc_graphics.plot_predictions(t_ind=0)
+        sim_graphics.plot_results()
+        sim_graphics.reset_axes()
+
+        plt.show()
+
+        # numSteps = round(SIM_LENGTH/DT)+1
+        # t = np.linspace(0, SIM_LENGTH, numSteps)
+
+        # successfulLanding = False
+        # solution = []
+        # initCondition = self.state.getVector()
+        # initCondition.append(0.0)   #   t
+        # ACG_mag, ACG_angle = self.calculateTargetVector(0.0)
+        # initCondition.append(ACG_mag)   #   ACG_mag
+        # initCondition.append(ACG_angle)   #   ACG_angle
+        # solution.append(initCondition)
+
+        # for idx in range(len(t)-1):
+        #     r_thrust, r_angle = self.digitalControlLoop(t[idx])
+        #     step = t[idx:idx+2]
+        #     sol = odeint(self.stateTransition3DoF, self.getState(), step)
+        #     self.state.update(sol)
+        #     vector = self.state.getVector()
+        #     vector.append(t[idx+1])
+        #     vector.append(r_thrust)
+        #     vector.append(r_angle)
+        #     solution.append(vector)
+
+        #     if (self.state.z <= 1.0):
+        #         successfulLanding = self.state.softLanding()
+        #         break
+
+        # fuelConsumed = self.m_max - self.state.m
+
+        # return successfulLanding, self.state.x, fuelConsumed, solution
