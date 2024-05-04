@@ -38,21 +38,26 @@ class TVCLanderState():
         self.phi = sol[-1, 7]
         self.dphi = sol[-1, 8]
 
-    def calculateAcceptableVertical(self):
-        return -(10.0 - 0.75 * abs(self.dx)) * 0.3048
+    def calculateAcceptableVertical(self, dx):
+        return -(10.0 - 0.75 * abs(dx)) * 0.3048
 
-    def softLanding(self):
+    def softLanding(self, x):
         #   Refer to Apollo design limits here:
         #   https://www.ibiblio.org/apollo/Documents/TN-D-4131%20Lunar%20Module%20Pilot%20Control%20Considerations.pdf
         #   Numbers in document are in imperial; metric conversion required
 
+        beta = x[5]
+        dbeta = x[6]
+        dx = x[3]
+        dz = x[4]
+
         #   Attitude and rate constraints
-        if (abs(self.beta) > 6.0 * math.pi / 180.0): return False
-        if (abs(self.dbeta) > 2.0 * math.pi / 180.0): return False
+        if (abs(beta) > 6.0 * math.pi / 180.0): return False
+        # if (abs(dbeta) > 2.0 * math.pi / 180.0): return False
 
         #   Velocity constraints
-        if (abs(self.dx) > 4.0 * 0.3048): return False
-        acceptableVertical = self.calculateAcceptableVertical()
+        if (abs(dx) > 4.0 * 0.3048): return False
+        acceptableVertical = self.calculateAcceptableVertical(dx)
         if (self.dz < acceptableVertical): return False
 
         return True
@@ -239,11 +244,13 @@ class TVCLander():
         dbeta = model.set_variable(var_type='_x', var_name='dbeta', shape=(1,1))
         phi = model.set_variable(var_type='_x', var_name='phi', shape=(1,1))
         dphi = model.set_variable(var_type='_x', var_name='dphi', shape=(1,1))
+
+        thrustMod = model.set_variable('_p', 'thrustMod')
         
         F = model.set_variable(var_type='_u', var_name='F', shape=(1,1))
         tau = model.set_variable(var_type='_u', var_name='tau', shape=(1,1))
 
-        model.set_rhs('m', -F/(self.I_spt * g_0))
+        model.set_rhs('m', -F * thrustMod/(self.I_spt * g_0))
         model.set_rhs('x', dx)
         model.set_rhs('z', dz)
         model.set_rhs('dx', F*np.sin(phi + beta)/m)
@@ -256,7 +263,7 @@ class TVCLander():
         model.setup()
 
         mpc = do_mpc.controller.MPC(model)
-        n_horizon = 30
+        n_horizon = 50
         setup_mpc = {
             'n_horizon': n_horizon,
             't_step': T_STEP,
@@ -277,7 +284,7 @@ class TVCLander():
             return tvp_template
         
 
-        mterm = (r_x - x)**2 + (r_z - z)**2 + (r_dx - dx)**2 + (r_dz - dz)**2
+        mterm = 2*(r_x - x)**2 + 2*(r_z - z)**2 + (r_dx - dx)**2 + (r_dz - dz)**2
         lterm = mterm
         mpc.set_objective(mterm=mterm, lterm=lterm)
 
@@ -308,6 +315,10 @@ class TVCLander():
         mpc.scaling['_u', 'F'] = 1000
         mpc.scaling['_u', 'tau'] = 1000
 
+        mpc.set_uncertainty_values(
+            thrustMod = np.array([1., 0.95, 1.05])
+        )
+
         mpc.set_tvp_fun(tvp_fun)
         mpc.setup()
 
@@ -324,6 +335,12 @@ class TVCLander():
             sim_tvp_template['r_beta'] = arrR_beta[idx]
             return sim_tvp_template
         simulator.set_tvp_fun(sim_tvp_fun)
+
+        p_template = simulator.get_p_template()
+        def p_fun(t):
+            p_template['thrustMod'] = self.thrustMod
+            return p_template
+        simulator.set_p_fun(p_fun)
 
         simulator.setup()
 
@@ -404,6 +421,18 @@ class TVCLander():
         for i in range(TIMESTEPS):
             u = mpc.make_step(x)
             x = simulator.make_step(u)
+
+            if (x[2] <= 1.0): break
+
+            print("========================================================================")
+            do_mpc.tools.printProgressBar(i, TIMESTEPS)
+            print()
+            print("z-pos: " + str(round(x[2,0], 2)) + " [m]")
+            print("========================================================================")
+
+        print("Soft landing: " + str(self.state.softLanding(x)))
+        print("Final x: " + str(x[1,0]) + " [m]")
+        print("Fuel consumed: " + str(1000.0 - x[0,0]) + " [kg]")
 
         # mpc_graphics.plot_predictions(t_ind=0)
         sim_graphics.plot_results()
