@@ -11,7 +11,7 @@ def main():
         if ((test + 1) % 10 == 0):
             print("Test " + str(test+1) + "/" + str(NUM_TESTS))
 
-        lander = TVCLander(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0)
+        lander = TVCLander(1.0, 1.0, 0.92, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0)
         # successfulLanding, rangeError, fuelConsumed, solution = lander.simulate()
         lander.simulate()
 

@@ -58,7 +58,7 @@ class TVCLanderState():
         #   Velocity constraints
         if (abs(dx) > 4.0 * 0.3048): return False
         acceptableVertical = self.calculateAcceptableVertical(dx)
-        if (self.dz < acceptableVertical): return False
+        if (dz < acceptableVertical): return False
 
         return True
     
