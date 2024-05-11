@@ -319,6 +319,8 @@ class TVCLander():
             thrustMod = np.array([1., 0.95, 1.05])
         )
 
+        mpc.settings.supress_ipopt_output()
+
         mpc.set_tvp_fun(tvp_fun)
         mpc.setup()
 
@@ -354,64 +356,64 @@ class TVCLander():
         mpl.rcParams['lines.linewidth'] = 2
         mpl.rcParams['axes.grid'] = True
         
-        mpc_graphics = do_mpc.graphics.Graphics(mpc.data)
-        sim_graphics = do_mpc.graphics.Graphics(simulator.data)
+        # mpc_graphics = do_mpc.graphics.Graphics(mpc.data)
+        # sim_graphics = do_mpc.graphics.Graphics(simulator.data)
 
-        fig, ax = plt.subplots(3, 3, sharex=True, figsize=(10,8))
-        fig.align_ylabels()
+        # fig, ax = plt.subplots(3, 3, sharex=True, figsize=(10,8))
+        # fig.align_ylabels()
 
-        for g in [sim_graphics]:
-            g.add_line(var_type='_x', var_name='x', axis=ax[0,0])
-            g.add_line(var_type='_x', var_name='z', axis=ax[0,0])
+        # for g in [sim_graphics]:
+        #     g.add_line(var_type='_x', var_name='x', axis=ax[0,0])
+        #     g.add_line(var_type='_x', var_name='z', axis=ax[0,0])
 
-            g.add_line(var_type='_x', var_name='dx', axis=ax[1,0])
-            g.add_line(var_type='_x', var_name='dz', axis=ax[1,0])
+        #     g.add_line(var_type='_x', var_name='dx', axis=ax[1,0])
+        #     g.add_line(var_type='_x', var_name='dz', axis=ax[1,0])
 
-            g.add_line(var_type='_u', var_name='F', axis=ax[2,0])
+        #     g.add_line(var_type='_u', var_name='F', axis=ax[2,0])
 
-            g.add_line(var_type='_x', var_name='beta', axis=ax[0,1])
+        #     g.add_line(var_type='_x', var_name='beta', axis=ax[0,1])
 
-            g.add_line(var_type='_x', var_name='dbeta', axis=ax[1,1])
+        #     g.add_line(var_type='_x', var_name='dbeta', axis=ax[1,1])
 
-            g.add_line(var_type='_x', var_name='m', axis=ax[2,1])
+        #     g.add_line(var_type='_x', var_name='m', axis=ax[2,1])
 
-            g.add_line(var_type='_x', var_name='phi', axis=ax[0,2])
+        #     g.add_line(var_type='_x', var_name='phi', axis=ax[0,2])
 
-            g.add_line(var_type='_x', var_name='dphi', axis=ax[1,2])
+        #     g.add_line(var_type='_x', var_name='dphi', axis=ax[1,2])
 
-            g.add_line(var_type='_u', var_name='tau', axis=ax[2,2])
+        #     g.add_line(var_type='_u', var_name='tau', axis=ax[2,2])
 
-        ax[0,0].set_ylabel('Distance [m]')
-        lines = sim_graphics.result_lines['_x', 'x'] + sim_graphics.result_lines['_x', 'z']
-        ax[0,0].legend(lines, ['x', 'z'])
+        # ax[0,0].set_ylabel('Distance [m]')
+        # lines = sim_graphics.result_lines['_x', 'x'] + sim_graphics.result_lines['_x', 'z']
+        # ax[0,0].legend(lines, ['x', 'z'])
 
-        ax[1,0].set_ylabel('Velocity [m/s]')
-        lines = sim_graphics.result_lines['_x', 'dx'] + sim_graphics.result_lines['_x', 'dz']
-        ax[1,0].legend(lines, ['dx', 'dz'])
+        # ax[1,0].set_ylabel('Velocity [m/s]')
+        # lines = sim_graphics.result_lines['_x', 'dx'] + sim_graphics.result_lines['_x', 'dz']
+        # ax[1,0].legend(lines, ['dx', 'dz'])
 
-        ax[2,0].set_ylabel('Thrust [N]')
-        ax[2,0].legend(sim_graphics._result_lines['_u', 'F'], ['F'])
-        ax[2,0].set_xlabel('Time [s]')
+        # ax[2,0].set_ylabel('Thrust [N]')
+        # ax[2,0].legend(sim_graphics._result_lines['_u', 'F'], ['F'])
+        # ax[2,0].set_xlabel('Time [s]')
 
-        ax[0,1].set_ylabel('Angle [rad]')
-        ax[0,1].legend(sim_graphics._result_lines['_x', 'beta'], ['beta'])
+        # ax[0,1].set_ylabel('Angle [rad]')
+        # ax[0,1].legend(sim_graphics._result_lines['_x', 'beta'], ['beta'])
 
-        ax[1,1].set_ylabel('Velocity [rad/s]')
-        ax[1,1].legend(sim_graphics._result_lines['_x', 'dbeta'], ['dbeta'])
+        # ax[1,1].set_ylabel('Velocity [rad/s]')
+        # ax[1,1].legend(sim_graphics._result_lines['_x', 'dbeta'], ['dbeta'])
 
-        ax[2,1].set_ylabel('Mass [kg]')
-        ax[2,1].legend(sim_graphics._result_lines['_x', 'm'], ['m'])
-        ax[2,1].set_xlabel('Time [s]')
+        # ax[2,1].set_ylabel('Mass [kg]')
+        # ax[2,1].legend(sim_graphics._result_lines['_x', 'm'], ['m'])
+        # ax[2,1].set_xlabel('Time [s]')
 
-        ax[0,2].set_ylabel('Gimbal Angle [rad]')
-        ax[0,2].legend(sim_graphics._result_lines['_x', 'phi'], ['phi'])
+        # ax[0,2].set_ylabel('Gimbal Angle [rad]')
+        # ax[0,2].legend(sim_graphics._result_lines['_x', 'phi'], ['phi'])
 
-        ax[1,2].set_ylabel('Gimbal Velocity [rad/s]')
-        ax[1,2].legend(sim_graphics._result_lines['_x', 'dphi'], ['dphi'])
+        # ax[1,2].set_ylabel('Gimbal Velocity [rad/s]')
+        # ax[1,2].legend(sim_graphics._result_lines['_x', 'dphi'], ['dphi'])
 
-        ax[2,2].set_ylabel('Torque [Nm]')
-        ax[2,2].legend(sim_graphics._result_lines['_u', 'tau'], ['tau'])
-        ax[2,2].set_xlabel('Time [s]')
+        # ax[2,2].set_ylabel('Torque [Nm]')
+        # ax[2,2].legend(sim_graphics._result_lines['_u', 'tau'], ['tau'])
+        # ax[2,2].set_xlabel('Time [s]')
 
         simulator.reset_history()
         simulator.x0 = x0
@@ -424,21 +426,21 @@ class TVCLander():
 
             if (x[2] <= 1.0): break
 
-            print("========================================================================")
-            do_mpc.tools.printProgressBar(i, TIMESTEPS)
-            print()
-            print("z-pos: " + str(round(x[2,0], 2)) + " [m]")
-            print("========================================================================")
+            # print("========================================================================")
+            # do_mpc.tools.printProgressBar(i, TIMESTEPS)
+            # print()
+            # print("z-pos: " + str(round(x[2,0], 2)) + " [m]")
+            # print("========================================================================")
 
         print("Soft landing: " + str(self.state.softLanding(x)))
         print("Final x: " + str(x[1,0]) + " [m]")
         print("Fuel consumed: " + str(1000.0 - x[0,0]) + " [kg]")
 
         # mpc_graphics.plot_predictions(t_ind=0)
-        sim_graphics.plot_results()
-        sim_graphics.reset_axes()
+        # sim_graphics.plot_results()
+        # sim_graphics.reset_axes()
 
-        plt.show()
+        # plt.show()
 
         # numSteps = round(SIM_LENGTH/DT)+1
         # t = np.linspace(0, SIM_LENGTH, numSteps)

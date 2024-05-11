@@ -6,13 +6,13 @@ def main():
     softLandingErrors = []
     softLandingFuel = []
 
-    for test in range(NUM_TESTS):
-
-        if ((test + 1) % 10 == 0):
-            print("Test " + str(test+1) + "/" + str(NUM_TESTS))
-
-        lander = TVCLander(1.0, 1.0, 0.92, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0)
+    print()
+    for test in range(11):
+        if test == 5: continue
+        dbeta = -10.0+test*2.0
+        lander = TVCLander(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, dbeta, 0.0, 0.0)
         # successfulLanding, rangeError, fuelConsumed, solution = lander.simulate()
+        print("deta: " + str(round(dbeta, 1)))
         lander.simulate()
 
     #     if (successfulLanding): 
