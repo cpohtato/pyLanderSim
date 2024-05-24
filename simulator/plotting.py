@@ -75,11 +75,11 @@ def plotResults(sol):
     # plt.xlabel('t [s]')
 
     plt.figure()
-    plt.plot(t, z, label='z')
-    plt.plot(t, x, label='x')
+    plt.plot(t, z, label='z [m]')
+    plt.plot(t, x, label='x [m]')
     plt.legend(loc='best')
     plt.xlabel('t [s]')
-    plt.ylabel('[m]')
+    # plt.ylabel('[m]')
 
     # plt.figure(2)
     # plt.plot(t, sol[:, 1], label='x [m]')

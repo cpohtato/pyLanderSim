@@ -1,7 +1,7 @@
 NUM_TESTS = 1
 
 #   Simulation parameters
-SIM_LENGTH = 250    #   s
+SIM_LENGTH = 180    #   s
 DT = 0.01           #   s
 
 #   Standard gravity
